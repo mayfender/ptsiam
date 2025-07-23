@@ -4,9 +4,9 @@ import Link from "next/link";
 export default function Home() {
   const menus = [
     { name: "คัดข้อมูลที่ดิน", href: "ui/poss-right" },
-    { name: "N...", href: "/" },
-    { name: "N...", href: "/" },
-    { name: "N...", href: "/" },
+    { name: "N...", href: "ui/next" },
+    { name: "N...", href: "ui/next" },
+    { name: "N...", href: "ui/next" },
   ];
   return (
     <div className="px-20">

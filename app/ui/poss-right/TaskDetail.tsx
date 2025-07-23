@@ -1,3 +1,4 @@
+import { formatInTimeZone } from "date-fns-tz";
 import {
   AlertCircle,
   ArrowLeft,
@@ -12,12 +13,14 @@ import React, { useState } from "react";
 export default function TaskDetail({
   setTasks,
   selectedTask,
+  setSelectedTask,
   setCurrentView,
   getStatusText,
   getStatusColor,
 }: {
   setTasks: any;
   selectedTask: any;
+  setSelectedTask: any;
   setCurrentView: any;
   getStatusText: any;
   getStatusColor: any;
@@ -88,13 +91,21 @@ export default function TaskDetail({
           files: { ...currentState.files, updated: file },
         });
 
+        let currentStep = 4;
+        setSelectedTask((item: any) => ({
+          ...item,
+          current_step: currentStep,
+          status: "completed",
+        }));
+
         // Update main task status
         setTasks((prev: any) =>
           prev.map((task: any) =>
             task.id === taskId
               ? {
                   ...task,
-                  currentStep: 4,
+                  current_step: currentStep,
+                  status: "completed",
                   statuses: { ...task.statuses, update: "updated" },
                 }
               : task
@@ -106,13 +117,19 @@ export default function TaskDetail({
           files: { ...currentState.files, original: file },
         });
 
+        let currentStep = 3;
+        setSelectedTask((item: any) => ({
+          ...item,
+          current_step: currentStep,
+        }));
+
         // Update main task status
         setTasks((prev: any) =>
           prev.map((task: any) =>
             task.id === taskId
               ? {
                   ...task,
-                  currentStep: 3,
+                  current_step: currentStep,
                   statuses: { ...task.statuses, upload: "uploaded" },
                 }
               : task
@@ -180,7 +197,12 @@ export default function TaskDetail({
             {selectedTask.name}
           </h1>
           <p className="text-gray-600">
-            Created on {selectedTask.createdAt.toLocaleDateString()}
+            Created on{" "}
+            {formatInTimeZone(
+              selectedTask.created_at,
+              "Asia/Bangkok",
+              "dd/MM/yyyy HH:mm"
+            )}
           </p>
         </div>
         <span
@@ -199,14 +221,14 @@ export default function TaskDetail({
             <div key={step.id} className="flex items-center">
               <div
                 className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${
-                  selectedTask.currentStep > step.id
+                  selectedTask.current_step > step.id
                     ? "bg-green-500 border-green-500 text-white"
-                    : selectedTask.currentStep === step.id
+                    : selectedTask.current_step === step.id
                     ? "bg-blue-500 border-blue-500 text-white"
                     : "bg-white border-gray-300 text-gray-500"
                 }`}
               >
-                {selectedTask.currentStep > step.id ? (
+                {selectedTask.current_step > step.id ? (
                   <Check className="w-5 h-5" />
                 ) : (
                   <span className="text-sm font-medium">{step.id}</span>
@@ -215,7 +237,7 @@ export default function TaskDetail({
               {index < steps.length - 1 && (
                 <div
                   className={`h-0.5 w-24 ml-4 transition-all ${
-                    selectedTask.currentStep > step.id
+                    selectedTask.current_step > step.id
                       ? "bg-green-500"
                       : "bg-gray-300"
                   }`}
@@ -236,7 +258,7 @@ export default function TaskDetail({
       {/* Step 2: Upload Excel */}
       <div
         className={`mb-6 p-6 rounded-lg border-l-4 transition-all ${
-          selectedTask.currentStep >= 2
+          selectedTask.current_step >= 2
             ? "bg-gray-50 border-blue-500"
             : "bg-gray-100 border-gray-300 opacity-50"
         }`}
@@ -262,7 +284,7 @@ export default function TaskDetail({
         <div className="flex items-center space-x-4">
           <label
             className={`flex-1 ${
-              selectedTask.currentStep >= 2
+              selectedTask.current_step >= 2
                 ? "cursor-pointer"
                 : "cursor-not-allowed"
             }`}
@@ -272,14 +294,14 @@ export default function TaskDetail({
               accept=".xlsx,.xls"
               onChange={(e) => handleFileUpload(e, false)}
               disabled={
-                selectedTask.currentStep < 2 ||
+                selectedTask.current_step < 2 ||
                 selectedTask.statuses.upload === "uploaded"
               }
               className="hidden"
             />
             <div
               className={`p-4 border-2 border-dashed rounded-md text-center transition-all ${
-                selectedTask.currentStep >= 2
+                selectedTask.current_step >= 2
                   ? selectedTask.statuses.upload === "uploaded"
                     ? "border-green-300 bg-green-50"
                     : "border-blue-300 bg-blue-50 hover:border-blue-400"
@@ -300,7 +322,7 @@ export default function TaskDetail({
                       currentState.files?.original?.name ||
                       selectedTask.files.original
                     }`
-                  : selectedTask.currentStep >= 2
+                  : selectedTask.current_step >= 2
                   ? "Click to select Excel file or drag and drop"
                   : "Task must be created first"}
               </p>
@@ -312,7 +334,7 @@ export default function TaskDetail({
       {/* Step 3: Update Excel */}
       <div
         className={`mb-6 p-6 rounded-lg border-l-4 transition-all ${
-          selectedTask.currentStep >= 3
+          selectedTask.current_step >= 3
             ? "bg-gray-50 border-blue-500"
             : "bg-gray-100 border-gray-300 opacity-50"
         }`}
@@ -338,7 +360,7 @@ export default function TaskDetail({
         <div className="flex items-center space-x-4">
           <label
             className={`flex-1 ${
-              selectedTask.currentStep >= 3
+              selectedTask.current_step >= 3
                 ? "cursor-pointer"
                 : "cursor-not-allowed"
             }`}
@@ -348,14 +370,14 @@ export default function TaskDetail({
               accept=".xlsx,.xls"
               onChange={(e) => handleFileUpload(e, true)}
               disabled={
-                selectedTask.currentStep < 3 ||
+                selectedTask.current_step < 3 ||
                 selectedTask.statuses.update === "updated"
               }
               className="hidden"
             />
             <div
               className={`p-4 border-2 border-dashed rounded-md text-center transition-all ${
-                selectedTask.currentStep >= 3
+                selectedTask.current_step >= 3
                   ? selectedTask.statuses.update === "updated"
                     ? "border-green-300 bg-green-50"
                     : "border-orange-300 bg-orange-50 hover:border-orange-400"
@@ -376,7 +398,7 @@ export default function TaskDetail({
                       currentState.files?.updated?.name ||
                       selectedTask.files.updated
                     }`
-                  : selectedTask.currentStep >= 3
+                  : selectedTask.current_step >= 3
                   ? "Click to select updated Excel file"
                   : "Complete step 2 first"}
               </p>
@@ -388,7 +410,7 @@ export default function TaskDetail({
       {/* Step 4: Download */}
       <div
         className={`mb-6 p-6 rounded-lg border-l-4 transition-all ${
-          selectedTask.currentStep >= 4
+          selectedTask.current_step >= 4
             ? "bg-gray-50 border-green-500"
             : "bg-gray-100 border-gray-300 opacity-50"
         }`}
@@ -416,11 +438,11 @@ export default function TaskDetail({
         <button
           onClick={handleDownload}
           disabled={
-            selectedTask.currentStep < 4 ||
+            selectedTask.current_step < 4 ||
             currentState.downloadStatus === "downloading"
           }
           className={`w-full py-3 px-6 rounded-md transition-colors flex items-center justify-center space-x-2 ${
-            selectedTask.currentStep >= 4
+            selectedTask.current_step >= 4
               ? "bg-green-500 text-white hover:bg-green-600 disabled:bg-green-400"
               : "bg-gray-300 text-gray-500 cursor-not-allowed"
           }`}

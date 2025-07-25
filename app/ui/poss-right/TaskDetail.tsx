@@ -1,3 +1,4 @@
+import { uploadData } from "@/app/services/taskService";
 import { formatInTimeZone } from "date-fns-tz";
 import {
   AlertCircle,
@@ -9,6 +10,7 @@ import {
   Upload,
 } from "lucide-react";
 import React, { useState } from "react";
+import * as XLSX from "xlsx"; //SheetJS
 
 export default function TaskDetail({
   setTasks,
@@ -74,6 +76,7 @@ export default function TaskDetail({
     const file = event.target.files[0];
     if (!file || !selectedTask) return;
 
+    //-------------
     const taskId = selectedTask.id;
     const currentState = getTaskDetailState(taskId);
 
@@ -83,8 +86,29 @@ export default function TaskDetail({
       updateTaskDetailState(taskId, { uploadStatus: "uploading" });
     }
 
-    // Simulate file upload
-    setTimeout(() => {
+    //-------------
+    const reader = new FileReader();
+    reader.onload = async (e: any) => {
+      console.log("Onload file");
+      const workbook = XLSX.read(e.target.result, {
+        type: "binary",
+        cellText: false,
+        cellDates: true,
+      });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData: any = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        raw: false,
+        dateNF: "dd/mm/yyyy",
+        defval: "",
+      });
+      if (isUpdate) {
+        //-- Waiting
+      } else {
+        await uploadData({ jsonData: jsonData });
+      }
+
       if (isUpdate) {
         updateTaskDetailState(taskId, {
           updateStatus: "updated",
@@ -136,7 +160,8 @@ export default function TaskDetail({
           )
         );
       }
-    }, 2000);
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDownload = async () => {

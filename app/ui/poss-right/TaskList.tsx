@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import {
   FileSpreadsheet,
   Plus,
@@ -17,13 +17,16 @@ import Link from "next/link";
 import TaskDetail from "./TaskDetail";
 import { formatInTimeZone } from "date-fns-tz";
 import { datas } from "./data";
+import { getTasksAndCount } from "@/app/services/taskService";
 
-const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
+const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
   console.log("TaskList Client");
-  const allPort = use(allTasks);
+  const taskDataUse = use(taskData);
   const [currentView, setCurrentView] = useState("list"); // 'list' or 'detail'
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [tasks, setTasks] = useState(allPort);
+
+  const [tasks, setTasks] = useState(taskDataUse[0]);
+  const [countTasks, setCountTasks] = useState(taskDataUse[1]);
 
   // New task form state
   const [newTaskName, setNewTaskName] = useState("");
@@ -32,6 +35,44 @@ const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [totalItems, setTotalItems] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [startIndex, setStartIndex] = useState<number>(0);
+  const [endIndex, setEndIndex] = useState<number>(0);
+
+  const paginationData = ({
+    count,
+    page,
+    itemsPerPage,
+  }: {
+    count: any;
+    page: any;
+    itemsPerPage: any;
+  }) => {
+    setTotalItems(count);
+    setTotalPages(Math.ceil(count / itemsPerPage));
+    let start = (page - 1) * itemsPerPage;
+    setStartIndex(start);
+    setEndIndex(start + itemsPerPage);
+  };
+
+  const updateTask = async ({
+    page,
+    pageSize,
+  }: {
+    page: number;
+    pageSize: number;
+  }) => {
+    const offset = (page - 1) * pageSize;
+    const taskData: any = await getTasksAndCount({
+      pageSize: pageSize,
+      offset: offset,
+    });
+    setTasks(taskData[0]);
+    setCountTasks(taskData[1]);
+
+    paginationData({ count: taskData[1], page: page, itemsPerPage: pageSize });
+  };
 
   const getStatusText = (status: any, action?: any) => {
     const statusMap: any = {
@@ -98,7 +139,7 @@ const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
   };
 
   const handleDeleteTask = (taskId: any) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    setTasks((prev: any) => prev.filter((task: any) => task.id !== taskId));
     if (selectedTask?.id === taskId) {
       setCurrentView("list");
       setSelectedTask(null);
@@ -110,21 +151,20 @@ const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
     setCurrentView("detail");
   };
 
-  // Pagination calculations
-  const totalItems = tasks.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTasks = tasks.slice(startIndex, endIndex);
-
   const handlePageChange = (page: any) => {
     setCurrentPage(page);
+    updateTask({ page: page, pageSize: itemsPerPage });
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: any) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1); // Reset to first page when changing items per page
+    updateTask({ page: 1, pageSize: newItemsPerPage });
   };
+
+  useEffect(() => {
+    paginationData({ count: countTasks, page: 1, itemsPerPage: itemsPerPage });
+  }, []);
 
   // Task List View
   if (currentView === "list") {
@@ -234,7 +274,7 @@ const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentTasks.map((task, index) => (
+                    {tasks.map((task: any, index: any) => (
                       <tr
                         key={task.id}
                         className="hover:bg-gray-50 transition-colors"
@@ -242,7 +282,9 @@ const TaskList = ({ allTasks }: { allTasks: Promise<any[]> }) => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex justify-center items-center w-12 mr-2">
-                              <span className="grow">{index + 1}.</span>
+                              <span className="grow">
+                                {1 + index + startIndex}.
+                              </span>
                               <FileSpreadsheet className="w-5 h-5 text-gray-400" />
                             </div>
                             <div>

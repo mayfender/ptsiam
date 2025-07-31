@@ -17,7 +17,9 @@ import Link from "next/link";
 import TaskDetail from "./TaskDetail";
 import { formatInTimeZone } from "date-fns-tz";
 import { datas } from "./data";
-import { getTasksAndCount } from "@/app/services/taskService";
+import { createTask, getTasksAndCount } from "@/app/services/taskService";
+import Toastify from "@/app/libs/Toastify";
+import { toast } from "react-toastify";
 
 const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
   console.log("TaskList Client");
@@ -108,12 +110,10 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
   const handleCreateNewTask = async () => {
     if (!newTaskName.trim()) return;
 
-    setTaskFormStatus("creating");
-
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      setTaskFormStatus("creating");
       const newTask: any = {
-        id: tasks.length + 1,
+        // id: tasks.length + 1,
         name: newTaskName,
         created_at: new Date(),
         status: "in_progress",
@@ -127,15 +127,25 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
           download: "idle",
         },
       };
+      const newTaskId = await createTask({
+        task: newTask,
+      });
 
-      setTasks((prev: any) => [...prev, newTask]);
+      newTask.id = newTaskId;
+      setTasks((prev: any) => [newTask, ...prev]);
       setNewTaskName("");
       setTaskFormStatus("idle");
 
       // Auto-navigate to the new task
       setSelectedTask(newTask);
       setCurrentView("detail");
-    }, 1500);
+    } catch (error: any) {
+      toast.error(error.message, {
+        autoClose: 10000,
+        progress: undefined,
+      });
+      console.error(error);
+    }
   };
 
   const handleDeleteTask = (taskId: any) => {
@@ -197,7 +207,7 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
               value={newTaskName}
               onChange={(e) => setNewTaskName(e.target.value)}
               disabled={taskFormStatus === "creating"}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
             />
             <button
               onClick={handleCreateNewTask}
@@ -292,7 +302,12 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
                                 {task.name}
                               </div>
                               <div className="text-xs text-gray-500">
-                                <p>(500 | เจอ 300/100 | ส่ง 100/50)</p>
+                                {/* <p>(500 | เจอ 300/100 | ส่ง 100/50)</p> */}
+                                <p>
+                                  (Upload : ข้อมูลใหม่ :{" "}
+                                  {task.uploadInfo?.uploadInserted}, เจอในระบบ :{" "}
+                                  {task.uploadInfo?.uploadUpdated})
+                                </p>
                               </div>
                               {/* <div className="text-xs text-gray-500">
                                 <p>Import 500 รายการ</p>
@@ -457,6 +472,7 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
             </>
           )}
         </div>
+        <Toastify position="bottom-right" />
       </div>
     );
   }

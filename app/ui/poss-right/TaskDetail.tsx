@@ -170,7 +170,6 @@ export default function TaskDetail({
       const resp = await uploadFileRemote(formData);
       if (!resp) return;
 
-      dfdf;
       let mayfender, statuses, status;
       if (resp.isCompleted) {
         currentStep = 4;

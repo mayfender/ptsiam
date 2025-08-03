@@ -1,10 +1,10 @@
 import { updateData, uploadData } from "@/app/services/taskService";
-import { NextResponse } from "next/server";
-import * as XLSX from "xlsx"; //SheetJS
+import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { promises as fs } from "fs";
+import * as XlsxPopulate from "xlsx-populate";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -30,23 +30,19 @@ export async function POST(request: Request) {
     await fs.writeFile(filePath, buffer);
 
     // Read Excel file
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = await XlsxPopulate.fromDataAsync(buffer);
+    const sheet = workbook.sheet(0);
+    const jsonData = sheet.usedRange().value();
 
-    // Convert first sheet to JSON
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(sheet, {
-      header: 1,
-      raw: false,
-      dateNF: "dd/mm/yyyy",
-      defval: "",
-    });
+    if (!jsonData || jsonData.length === 0) {
+      return NextResponse.json({ error: "jsonData is EMPTY" }, { status: 400 });
+    }
 
     const paramsRaw = formData.get("params") as string | null;
     const params: any = paramsRaw ? JSON.parse(paramsRaw) : null;
 
     let result: any;
-    if (params.uploadStatus) {
+    if (params?.uploadStatus) {
       result = await uploadData({
         taskId: params.taskId,
         jsonData: jsonData,
@@ -65,8 +61,14 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ data: result });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message });
+  } catch (err: unknown) {
+    let errMsg;
+    if (err instanceof Error) {
+      errMsg = err.message;
+    } else {
+      errMsg = err;
+    }
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }
 

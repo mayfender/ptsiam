@@ -10,7 +10,6 @@ import {
   Upload,
 } from "lucide-react";
 import React, { useState } from "react";
-import * as XLSX from "xlsx"; //SheetJS
 import { toast } from "react-toastify";
 import Toastify from "@/app/libs/Toastify";
 
@@ -137,7 +136,7 @@ export default function TaskDetail({
         ...item,
         current_step: currentStep,
         status: "completed",
-        updateInfo: {},
+        uploadInfo: { ...item.uploadInfo, updatedUpdated: resp.updatedUpdated },
       }));
 
       // Update main task status
@@ -148,7 +147,10 @@ export default function TaskDetail({
                 ...task,
                 current_step: currentStep,
                 status: "completed",
-                updateInfo: {},
+                uploadInfo: {
+                  ...task.uploadInfo,
+                  updatedUpdated: resp.updatedUpdated,
+                },
                 statuses: { ...task.statuses, update: updateStatus },
               }
             : task
@@ -194,6 +196,7 @@ export default function TaskDetail({
       setSelectedTask((item: any) => ({
         ...item,
         current_step: currentStep,
+        status: status,
         uploadInfo: {
           uploadInserted: resp.inserted,
           uploadUpdated: resp.updated,
@@ -222,39 +225,32 @@ export default function TaskDetail({
     }
   };
 
-  const handleDownload = async () => {
-    if (!selectedTask) return;
-
-    const taskId = selectedTask.id;
-    updateTaskDetailState(taskId, { downloadStatus: "downloading" });
-
-    setTimeout(() => {
-      updateTaskDetailState(taskId, { downloadStatus: "ready" });
-
-      // Update main task to completed
-      setTasks((prev: any) =>
-        prev.map((task: any) =>
-          task.id === taskId
-            ? {
-                ...task,
-                status: "completed",
-                statuses: { ...task.statuses, download: "ready" },
-              }
-            : task
-        )
-      );
-
-      // Simulate download
-      const blob = new Blob(["Sample Excel data"], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  const handleDownload = async (taskId: any, step: any) => {
+    const res = await fetch(`/api/download?taskId=${taskId}&step=${step}`);
+    console.log(JSON.stringify(res));
+    if (!res.ok) {
+      toast.error("Failed to download file", {
+        autoClose: 10000,
+        progress: undefined,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${selectedTask.name.replace(/\s+/g, "_")}_processed.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 1000);
+      return;
+    }
+
+    // Convert response → Blob
+    const blob = await res.blob();
+
+    // get filename from headers
+    const disposition = res.headers.get("Content-Disposition");
+    const match = disposition?.match(/filename="(.+)"/);
+    const filename = match?.[1] || "download.xlsx";
+
+    // Option A: Create URL to trigger download manually
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const updateTaskDetailState = (taskId: any, updates: any) => {
@@ -377,12 +373,15 @@ export default function TaskDetail({
 
           <div className="flex items-center space-x-4">
             {selectedTask.current_step == 3 && (
-              <span
+              <button
                 className="cursor-pointer border border-green-500 w-10 h-10 rounded-full flex items-center justify-center"
                 title="Download"
+                onClick={() => {
+                  handleDownload(selectedTask.id, 1);
+                }}
               >
                 <Download className="w-5 h-5 text-green-500" />
-              </span>
+              </button>
             )}
 
             <label
@@ -446,6 +445,13 @@ export default function TaskDetail({
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <Upload className="w-5 h-5 mr-2" />
               Step 3: นำเข้า File ข้อมูลคัด (Update)
+              {selectedTask.uploadInfo?.updatedUpdated ? (
+                <span className="ml-2 font-normal text-sm">
+                  {`(Updated : ${selectedTask.uploadInfo?.updatedUpdated})`}
+                </span>
+              ) : (
+                ""
+              )}
             </h2>
             <div className="flex items-center space-x-2">
               <StatusIcon
@@ -464,12 +470,15 @@ export default function TaskDetail({
 
           <div className="flex items-center space-x-4">
             {selectedTask.current_step > 3 && (
-              <span
+              <button
                 className="cursor-pointer border border-green-500 w-10 h-10 rounded-full flex items-center justify-center"
                 title="Download"
+                onClick={() => {
+                  handleDownload(selectedTask.id, 2);
+                }}
               >
                 <Download className="w-5 h-5 text-green-500" />
-              </span>
+              </button>
             )}
             <label
               className={`flex-1 ${
@@ -483,8 +492,8 @@ export default function TaskDetail({
                 accept=".xlsx,.xls"
                 onChange={(e) => handleFileUpload(e, true)}
                 disabled={
-                  selectedTask.current_step < 3 ||
-                  selectedTask.statuses.update === "updated"
+                  selectedTask.current_step < 3
+                  // || selectedTask.statuses.update === "updated"
                 }
                 className="hidden"
               />

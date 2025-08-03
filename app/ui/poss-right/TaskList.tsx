@@ -188,7 +188,7 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
             </h1>
             <div className="grow flex justify-end items-center">
               <ArrowLeft className="w-4 h-4 mr-1" />
-              <Link href="/">Back Main Menu</Link>
+              <Link href="/">Back</Link>
             </div>
           </div>
           <p className="text-gray-600">Possessor Right</p>
@@ -198,7 +198,7 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
         <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <Plus className="w-5 h-5 mr-2" />
-            Create New Task
+            สร้าง Task ใหม่
           </h2>
           <div className="flex space-x-4">
             <input
@@ -220,7 +220,7 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
                 <Plus className="w-4 h-4" />
               )}
               <span>
-                {taskFormStatus === "creating" ? "Creating..." : "Create Task"}
+                {taskFormStatus === "creating" ? "กำลังสร้าง..." : "สร้าง"}
               </span>
             </button>
           </div>
@@ -304,9 +304,14 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
                               <div className="text-xs text-gray-500">
                                 {/* <p>(500 | เจอ 300/100 | ส่ง 100/50)</p> */}
                                 <p>
-                                  (Upload : ข้อมูลใหม่ :{" "}
+                                  (Uploaded : ข้อมูลใหม่ :{" "}
                                   {task.uploadInfo?.uploadInserted}, เจอในระบบ :{" "}
-                                  {task.uploadInfo?.uploadUpdated})
+                                  {task.uploadInfo?.uploadUpdated}/
+                                  {task.uploadInfo?.readyDataCount})
+                                </p>
+                                <p>
+                                  (Updated : update :{" "}
+                                  {task.uploadInfo?.updatedUpdated})
                                 </p>
                               </div>
                               {/* <div className="text-xs text-gray-500">

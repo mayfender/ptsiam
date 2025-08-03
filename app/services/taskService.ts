@@ -1,5 +1,8 @@
 "use server";
 import db from "@/app/libs/db";
+import path from "path";
+import { promises as fs } from "fs";
+import * as XlsxPopulate from "xlsx-populate";
 
 export async function createTask({ task }: { task: any }) {
   try {
@@ -24,15 +27,152 @@ export async function createTask({ task }: { task: any }) {
   }
 }
 
-/*
-* Download
+export async function getFile({
+  taskId,
+  step,
+}: {
+  taskId: number;
+  step: number;
+}) {
+  try {
+    console.log("start");
+    const selectStmt = db.prepare(
+      "SELECT upload_file_name FROM tasks WHERE id = :taskId"
+    );
+    const row: any = selectStmt.get({ taskId: taskId });
+    const fileName = row.upload_file_name;
 
+    const uploadDir = process.env.UPLOAD_FILE_PATH as string;
+    const filePath = path.join(uploadDir, fileName);
 
-SELECT *
-FROM lands l
-JOIN task_land tl on l.id = tl.land_id
-WHERE tl.task_id = 6 and l.updated_status = 0
-*/
+    const fileBuffer = await fs.readFile(filePath);
+    const workbook = await XlsxPopulate.fromDataAsync(fileBuffer);
+
+    // const sheet = workbook.sheet(0);
+    // const lastRow = sheet.usedRange().endCell().row().rowNumber(); // Get the last row number
+
+    if (step == 1 || step == 2) {
+      const sheetSt1 = workbook.addSheet(`Export Step ${step}`, 0);
+      sheetSt1.active(true);
+      const range = sheetSt1.range("A1:I1");
+      range.style({ horizontalAlignment: "center", bold: true });
+
+      const headers = [
+        { title: "ID_NO", field: "id_no", cellIndex: 1, width: 20 },
+        { title: "NAME", field: "name", cellIndex: 2, width: 20 },
+        { title: "STATUS", field: "updated_status", cellIndex: 3, width: 20 },
+      ];
+      const headersJson = [
+        { title: "เลขโฉนด", field: "เลขโฉนด", cellIndex: 4, width: 20 },
+        { title: "หน้าสำรวจ", field: "หน้าสำรวจ", cellIndex: 5, width: 20 },
+        { title: "เลขที่ดิน", field: "เลขที่ดิน", cellIndex: 6, width: 20 },
+        { title: "สถานะ", field: "สถานะ", cellIndex: 7, width: 20 },
+        {
+          title: "สำนักงานที่ดิน",
+          field: "สำนักงานที่ดิน",
+          cellIndex: 8,
+          width: 20,
+        },
+        {
+          title: "ที่ตั้งสำนักเขตที่ดิน",
+          field: "ที่ตั้งสำนักเขตที่ดิน",
+          cellIndex: 9,
+          width: 20,
+        },
+      ];
+
+      const concatHeader = [...headers, ...headersJson];
+      let headerObj;
+      range.map((c: any) => {
+        headerObj = concatHeader[c.columnNumber() - 1];
+        c.value(headerObj.title);
+        c.style({ border: true });
+        sheetSt1.column(c.columnNumber()).width(headerObj.width);
+      });
+
+      const selectStmt = db.prepare(
+        `
+        SELECT l.name, l.id_no, l.json_data, l.updated_status
+        FROM lands l
+        JOIN task_land tl on l.id = tl.land_id
+        WHERE tl.task_id = :taskId`
+      );
+      const lands: any = selectStmt.all({ taskId: taskId });
+      let jsonData;
+      let rowAddTop = 0,
+        valDummy;
+      lands.map((l: any, io: any) => {
+        headers.map((h: any, ii: any) => {
+          //----: data
+          if (h.field == "updated_status") {
+            valDummy =
+              l[h.field] == 1
+                ? "เจอ"
+                : l[h.field] == 0
+                ? "ไม่เจอ"
+                : step == 1
+                ? "ไม่เจอ เคยส่งคัดแล้ว"
+                : "คัดไม่เจอ";
+          } else {
+            valDummy = l[h.field] || "";
+          }
+          sheetSt1
+            .row(io + 2 + rowAddTop)
+            .cell(h.cellIndex)
+            .value(valDummy);
+        });
+        if (l.json_data) {
+          jsonData = JSON.parse(l.json_data);
+          jsonData.map((r: any, idex: any) => {
+            //----: data
+            headers.map((h: any, ii: any) => {
+              if (h.field == "updated_status") {
+                valDummy =
+                  l[h.field] == 1
+                    ? "เจอ"
+                    : l[h.field] == 0
+                    ? "ไม่เจอ"
+                    : step == 1
+                    ? "ไม่เจอ เคยส่งคัดแล้ว"
+                    : "คัดไม่เจอ";
+              } else {
+                valDummy = l[h.field] || "";
+              }
+              sheetSt1
+                .row(io + 2 + rowAddTop)
+                .cell(h.cellIndex)
+                .value(valDummy);
+            });
+            //----: json
+            headersJson.map((h: any) => {
+              sheetSt1
+                .row(io + 2 + rowAddTop)
+                .cell(h.cellIndex)
+                .value(r[h.field] || "-");
+            });
+            rowAddTop++;
+          });
+          rowAddTop--;
+        }
+      });
+    } else {
+      //
+    }
+
+    // 4. Populate the new row with your data
+    // sheet.cell(`A${insertRowNumber}`).value("1111");
+    // sheet.cell(`B${insertRowNumber}`).value("May");
+
+    // Save back to disk (styles preserved!)
+    const updatedBuffer = await workbook.outputAsync();
+
+    console.log("finish");
+    return { fileBuffer: updatedBuffer };
+  } catch (error: any) {
+    console.log(error);
+    throw error;
+  }
+}
 
 export async function getTasksAndCount({
   pageSize,
@@ -66,10 +206,16 @@ export async function updateData({
   updateFileName: any;
 }) {
   try {
-    const headerIndex = getHeaderInfo(jsonData[0], {
+    const h = {
       id_no: true,
-      deed_no: true,
-    });
+      เลขโฉนด: true,
+      หน้าสำรวจ: true,
+      เลขที่ดิน: true,
+      สถานะ: true,
+      สำนักงานที่ดิน: true,
+      ที่ตั้งสำนักเขตที่ดิน: true,
+    };
+    const headerIndex = getHeaderInfo(jsonData[0], h);
 
     let headerIndexInvert: any = {};
     for (const [key, value] of Object.entries(headerIndex)) {
@@ -84,10 +230,10 @@ export async function updateData({
         if (j == headerIndex.id_no) {
           data.idno = col.replace(/\D/g, "");
           if (!data.idno) return true; // Stop iterate
-        } else {
+        } else if (headerIndexInvert[j]) {
           data.jsonData = {
             ...data.jsonData,
-            [headerIndexInvert[j] || "column_" + j]: col,
+            [headerIndexInvert[j]]: col,
           };
         }
         return false;
@@ -97,7 +243,7 @@ export async function updateData({
       if (data.idno) {
         const dataDup = lData.find((d: any) => d.idno === data.idno);
         if (dataDup) {
-          dataDup.jsonData = [...dataDup.jsonData, data.jsonData];
+          dataDup.jsonData = [...dataDup.jsonData, data.jsonData[0]];
         } else {
           lData.push(data);
         }
@@ -109,6 +255,13 @@ export async function updateData({
       jsonData: JSON.stringify(d.jsonData),
     }));
 
+    const updateLandAllByTaskIdStmt = db.prepare(
+      ` UPDATE lands
+        SET updated_status = 2 -- Set to notfound.
+        FROM task_land tl
+        JOIN tasks t on tl.task_id = t.id
+        WHERE lands.id = tl.land_id AND t.id =:taskId`
+    );
     const updateLandStmt = db.prepare(
       "UPDATE lands SET json_data = :jsonData, updated_status = :updatedStatus WHERE id_no = :idno"
     );
@@ -117,22 +270,25 @@ export async function updateData({
         SET 
           current_step = :currentStep,
           status = :status,
+          upload_info = json_set(upload_info, '$."updatedUpdated"', :updatedUpdated),
           statuses = json_set(statuses, '$."update"', :statuses),
           update_file_name = :updateFileName
         WHERE id =:taskId`
     );
     const updateMultipleRows = db.transaction((rowsToUpdate) => {
-      /*
-      -- Update All on taskID 
-        UPDATE lands
-        SET updated_status = 2 -- Set to notfound first.
-        FROM task_land tl
-        JOIN tasks t on tl.task_id = t.id
-        WHERE lands.id = tl.land_id AND t.id = 5
-      */
+      let updatedInfo,
+        countChanged = 0;
 
+      //----
+      updateLandAllByTaskIdStmt.run({ taskId: taskId });
+
+      //----
       for (const rowData of rowsToUpdate) {
-        updateLandStmt.run(rowData);
+        updatedInfo = updateLandStmt.run(rowData);
+        if (updatedInfo.changes == 1) {
+          console.log("**********" + rowData.idno);
+          countChanged++;
+        }
       }
 
       //--------------: Update Task
@@ -140,10 +296,16 @@ export async function updateData({
         taskId: taskId,
         currentStep: currentStep,
         status: "completed",
+        updatedUpdated: countChanged,
         statuses: updateStatus,
         updateFileName: updateFileName,
       });
-      return { status: "ok" };
+
+      const updateResult: any = {
+        updatedUpdated: countChanged,
+      };
+
+      return updateResult;
     });
 
     const result = updateMultipleRows(lData);
@@ -183,7 +345,7 @@ export async function uploadData({
         if (j == headerIndex.name) {
           data.name = col;
         } else if (j == headerIndex.id_no) {
-          data.idno = col.replace(/\D/g, "");
+          data.idno = String(col).replace(/\D/g, "");
         }
       });
       data.createdAt = now;
@@ -252,7 +414,8 @@ export async function uploadData({
       };
 
       //--------------: Update Task
-      if (readyDataCount == datas.length) {
+      // if (readyDataCount == datas.length) {
+      if (uploadResult.inserted == 0) {
         updateUpdateStmt.run({
           taskId: taskId,
           uploadInfo: JSON.stringify({
@@ -345,14 +508,25 @@ async function countTasks() {
 }
 
 function getHeaderInfo(headers: any, constraint: any) {
-  const headerIndex: any = { name: -1, id_no: -1, deed_no: -1 };
+  const headerIndex: any = {
+    name: -1,
+    id_no: -1,
+    เลขโฉนด: -1,
+    หน้าสำรวจ: -1,
+    เลขที่ดิน: -1,
+    สถานะ: -1,
+    สำนักงานที่ดิน: -1,
+    ที่ตั้งสำนักเขตที่ดิน: -1,
+  };
   headers.map((row: any, index: any) => {
-    if (row.toLowerCase() == "name") {
-      headerIndex.name = index;
-    } else if (row.toLowerCase() == "id_no") {
-      headerIndex.id_no = index;
-    } else {
-      headerIndex[row] = index;
+    if (row) {
+      if (row.toLowerCase() == "name") {
+        headerIndex.name = index;
+      } else if (row.toLowerCase() == "id_no") {
+        headerIndex.id_no = index;
+      } else {
+        headerIndex[row] = index;
+      }
     }
   });
 

@@ -1,4 +1,3 @@
-import { uploadData } from "@/app/services/taskService";
 import { formatInTimeZone } from "date-fns-tz";
 import {
   AlertCircle,
@@ -76,6 +75,7 @@ export default function TaskDetail({
   const uploadFileRemote = async (formData: FormData) => {
     // Send to API route
     const response: any = await fetch("/api/upload", {
+      cache: "no-store",
       method: "POST",
       body: formData,
     });
@@ -226,7 +226,9 @@ export default function TaskDetail({
   };
 
   const handleDownload = async (taskId: any, step: any) => {
-    const res = await fetch(`/api/download?taskId=${taskId}&step=${step}`);
+    const res = await fetch(`/api/download?taskId=${taskId}&step=${step}`, {
+      cache: "no-store",
+    });
     console.log(JSON.stringify(res));
     if (!res.ok) {
       toast.error("Failed to download file", {

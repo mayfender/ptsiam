@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import React, { Suspense } from "react";
 import TaskList from "./TaskList";
 import { getTasksAndCount } from "@/app/services/taskService";

@@ -4,6 +4,18 @@ import path from "path";
 import { promises as fs } from "fs";
 import * as XlsxPopulate from "xlsx-populate";
 
+export async function removeTask(taskId: number) {
+  try {
+    const updateStmt = db.prepare(
+      "UPDATE tasks SET is_deleted = 1 WHERE id =:taskId"
+    );
+    updateStmt.run({ taskId: taskId });
+  } catch (error: any) {
+    console.log(error);
+    throw error;
+  }
+}
+
 export async function createTask({ task }: { task: any }) {
   try {
     let sql = `

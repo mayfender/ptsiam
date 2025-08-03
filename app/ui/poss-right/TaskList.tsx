@@ -16,10 +16,14 @@ import {
 import Link from "next/link";
 import TaskDetail from "./TaskDetail";
 import { formatInTimeZone } from "date-fns-tz";
-import { datas } from "./data";
-import { createTask, getTasksAndCount } from "@/app/services/taskService";
+import {
+  createTask,
+  getTasksAndCount,
+  removeTask,
+} from "@/app/services/taskService";
 import Toastify from "@/app/libs/Toastify";
 import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
 
 const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
   console.log("TaskList Client");
@@ -41,6 +45,8 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
   const [totalPages, setTotalPages] = useState<number>(0);
   const [startIndex, setStartIndex] = useState<number>(0);
   const [endIndex, setEndIndex] = useState<number>(0);
+
+  const router = useRouter();
 
   const paginationData = ({
     count,
@@ -148,11 +154,10 @@ const TaskList = ({ taskData }: { taskData: Promise<any> }) => {
     }
   };
 
-  const handleDeleteTask = (taskId: any) => {
-    setTasks((prev: any) => prev.filter((task: any) => task.id !== taskId));
-    if (selectedTask?.id === taskId) {
-      setCurrentView("list");
-      setSelectedTask(null);
+  const handleDeleteTask = async (taskId: any) => {
+    if (confirm("Are you sure to delete ?")) {
+      await removeTask(taskId);
+      updateTask({ page: currentPage, pageSize: itemsPerPage });
     }
   };
 

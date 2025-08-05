@@ -45,6 +45,7 @@ db.exec(`
     land_office TEXT, -- สำนักงานที่ดิน
     Land_dep TEXT,  -- ที่ตั้งสำนักเขตที่ดิน
     json_data TEXT,
+    data_date TEXT,  -- วันที่ข้อมูล
     created_at TEXT NOT NULL,
     updated_at TEXT,
     created_by TEXT,

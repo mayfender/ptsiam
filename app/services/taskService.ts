@@ -3,6 +3,7 @@ import db from "@/app/libs/db";
 import path from "path";
 import { promises as fs } from "fs";
 import * as XlsxPopulate from "xlsx-populate";
+import { formatInTimeZone } from "date-fns-tz";
 
 export async function removeTask(taskId: number) {
   try {
@@ -70,25 +71,26 @@ export async function getFile({
       range.style({ horizontalAlignment: "center", bold: true });
 
       const headers = [
-        { title: "ID_NO", field: "id_no", cellIndex: 1, width: 20 },
-        { title: "NAME", field: "name", cellIndex: 2, width: 20 },
-        { title: "STATUS", field: "updated_status", cellIndex: 3, width: 20 },
+        { title: "วันที่ข้อมูล", field: "data_date", cellIndex: 1, width: 20 },
+        { title: "ID_NO", field: "id_no", cellIndex: 2, width: 20 },
+        { title: "NAME", field: "name", cellIndex: 3, width: 20 },
+        { title: "STATUS", field: "updated_status", cellIndex: 4, width: 20 },
       ];
       const headersJson = [
-        { title: "เลขโฉนด", field: "เลขโฉนด", cellIndex: 4, width: 20 },
-        { title: "หน้าสำรวจ", field: "หน้าสำรวจ", cellIndex: 5, width: 20 },
-        { title: "เลขที่ดิน", field: "เลขที่ดิน", cellIndex: 6, width: 20 },
-        { title: "สถานะ", field: "สถานะ", cellIndex: 7, width: 20 },
+        { title: "เลขโฉนด", field: "เลขโฉนด", cellIndex: 5, width: 20 },
+        { title: "หน้าสำรวจ", field: "หน้าสำรวจ", cellIndex: 6, width: 20 },
+        { title: "เลขที่ดิน", field: "เลขที่ดิน", cellIndex: 7, width: 20 },
+        { title: "สถานะ", field: "สถานะ", cellIndex: 8, width: 20 },
         {
           title: "สำนักงานที่ดิน",
           field: "สำนักงานที่ดิน",
-          cellIndex: 8,
+          cellIndex: 9,
           width: 20,
         },
         {
           title: "ที่ตั้งสำนักเขตที่ดิน",
           field: "ที่ตั้งสำนักเขตที่ดิน",
-          cellIndex: 9,
+          cellIndex: 10,
           width: 20,
         },
       ];
@@ -104,7 +106,7 @@ export async function getFile({
 
       const selectStmt = db.prepare(
         `
-        SELECT l.name, l.id_no, l.json_data, l.updated_status
+        SELECT l.name, l.id_no, l.json_data, l.updated_status, l.data_date
         FROM lands l
         JOIN task_land tl on l.id = tl.land_id
         WHERE tl.task_id = :taskId`
@@ -125,6 +127,10 @@ export async function getFile({
                 : step == 1
                 ? "ไม่เจอ เคยส่งคัดแล้ว"
                 : "คัดไม่เจอ";
+          } else if (h.field == "data_date") {
+            valDummy = l[h.field]
+              ? formatInTimeZone(l[h.field], "Asia/Bangkok", "dd/MM/yyyy HH:mm")
+              : "";
           } else {
             valDummy = l[h.field] || "";
           }
@@ -262,20 +268,23 @@ export async function updateData({
       }
     });
 
+    const now = new Date().toISOString();
     lData = lData.map((d: any) => ({
       ...d,
       jsonData: JSON.stringify(d.jsonData),
+      dataDate: now,
     }));
 
     const updateLandAllByTaskIdStmt = db.prepare(
       ` UPDATE lands
-        SET updated_status = 2 -- Set to notfound.
+        SET updated_status = 2, -- Set to notfound.
+        data_date = :dataDate
         FROM task_land tl
         JOIN tasks t on tl.task_id = t.id
         WHERE lands.id = tl.land_id AND t.id =:taskId`
     );
     const updateLandStmt = db.prepare(
-      "UPDATE lands SET json_data = :jsonData, updated_status = :updatedStatus WHERE id_no = :idno"
+      "UPDATE lands SET json_data = :jsonData, updated_status = :updatedStatus, data_date = :dataDate WHERE id_no = :idno"
     );
     const updateStmt = db.prepare(
       `UPDATE tasks 
@@ -292,7 +301,7 @@ export async function updateData({
         countChanged = 0;
 
       //----
-      updateLandAllByTaskIdStmt.run({ taskId: taskId });
+      updateLandAllByTaskIdStmt.run({ taskId: taskId, dataDate: now });
 
       //----
       for (const rowData of rowsToUpdate) {
